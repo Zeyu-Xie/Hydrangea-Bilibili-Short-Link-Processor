@@ -12,17 +12,26 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s\n', level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# Config
+config_path = os.path.join(os.path.dirname(__file__), 'config.yaml')
+with open(config_path, 'r') as f:
+    config = yaml.safe_load(f)
+headers = config['headers']
+
 # Functions
 def get_server_info():
     hn = socket.gethostname()
     ip = requests.get('https://api.ipify.org').text
     return (hn, ip)
 def legal_bilibili_short_url(url):
+    global headers
+    # Test if the URL can be parsed
     url_parsed = None
     try:
         url_parsed = urlparse(url)
     except Exception as e:
         return (False, "URL parsing error.")
+    # Test if the URL is in the right format
     if url_parsed.scheme != "https":
         return (False, "URL scheme is not https.")
     if url_parsed.netloc != "b23.tv":
@@ -33,12 +42,18 @@ def legal_bilibili_short_url(url):
         return (False, "URL query is not empty.")
     if url_parsed.fragment != "":
         return (False, "URL fragment is not empty.")
-    return (True, "URL is legal.")
+    # Test if the URL is valid
+    res_headers = requests.get(url, headers=headers).headers
+    if 'Bili-Status-Code' in res_headers.keys():
+        if res_headers['Bili-Status-Code'] == '-404':
+            return (False, "URL is in the right format but not valid.")
+        else:
+            return (True, "URL is legal.")
+    else:
+        return (True, "URL is legal.")
 def short_link_redirected_url(short_link):
+    global headers
     # Send a HEAD request to get the redirection URL
-    headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'
-    }
     response = requests.head(short_link, headers=headers)
     # Parse the query string from the redirection URL and reconstruct the URL
     location = urlparse(response.headers['Location'])
