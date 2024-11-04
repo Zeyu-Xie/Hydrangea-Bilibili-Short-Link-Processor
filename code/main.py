@@ -1,4 +1,5 @@
 import logging
+from telegram import Update, MessageEntity
 from telegram.ext import *
 import os
 import sys
@@ -81,15 +82,21 @@ async def server(update, context):
 
 # Message Functions
 async def message(update, context):
-    url = update.message.text
-    legality, message = legal_bilibili_short_url(url)
-    if not legality:
-        await update.message.reply_text(message)
-        logger.info(message)
-    else:
-        redirected_url = short_link_redirected_url(url)
-        await update.message.reply_text(redirected_url)
-        logger.info(redirected_url)
+    message = update.message
+    url_list = []
+    for entity in message.entities:
+        if entity.type == MessageEntity.URL:
+            url = message.text[entity.offset: entity.offset + entity.length]
+            url_list.append(url)
+    for url in url_list:
+        legality, message = legal_bilibili_short_url(url)
+        if not legality:
+            await update.message.reply_text(message)
+            logger.info(message)
+        else:
+            redirected_url = short_link_redirected_url(url)
+            await update.message.reply_text(redirected_url)
+            logger.info(redirected_url)
 
 if __name__ == '__main__':
 
