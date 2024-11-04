@@ -4,16 +4,33 @@ import os
 import sys
 import requests
 from urllib.parse import urlparse, urlunparse, parse_qs
+import yaml
+import socket
 
-# 设置日志记录器
+# Logging
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s\n', level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Consts
-bot_token = "7554399942:AAFwzr6NR-oTQCcrwXZOkj8aUsFl4fon5iY"
+# Config
+config_path = os.path.join(os.path.dirname(__file__), "config.yaml")
+with open(config_path, 'r') as stream:
+    try:
+        config = yaml.safe_load(stream)
+    except yaml.YAMLError as e:
+        logger.error(f"ERROR: {type(e)} - {e}")
+        sys.exit(1)
+bot_token = config['bot_token']
 
 # Functions
+
+
+def get_server_info():
+    hn = socket.gethostname()
+    ip = requests.get('https://api.ipify.org').text
+    return (hn, ip)
+
+
 def legal_bilibili_short_url(url):
     url_parsed = None
     try:
@@ -31,6 +48,7 @@ def legal_bilibili_short_url(url):
     if url_parsed.fragment != "":
         return (False, "URL fragment is not empty.")
     return (True, "URL is legal.")
+
 
 def short_link_redirected_url(short_link):
 
@@ -53,16 +71,26 @@ def short_link_redirected_url(short_link):
         'query': query,
         'fragment': location.fragment
     }
-    redirected_url = urlunparse((location_dict['scheme'], location_dict['netloc'], location_dict['path'], '', '', ''))
+    redirected_url = urlunparse(
+        (location_dict['scheme'], location_dict['netloc'], location_dict['path'], '', '', ''))
 
     # Return the URL
     return redirected_url
 
+# Command Functions
+
+
+async def server(update, context):
+    hn, ip = get_server_info()
+    await update.message.reply_text(f"Hostname: {hn}\nIP Address: {ip}")
+    logger.info(f"Hostname: {hn}\nIP Address: {ip}")
+
+# Message Functions
+
+
 async def message(update, context):
-    
     url = update.message.text
     legality, message = legal_bilibili_short_url(url)
-    
     if not legality:
         await update.message.reply_text(message)
         logger.info(message)
@@ -70,7 +98,6 @@ async def message(update, context):
         redirected_url = short_link_redirected_url(url)
         await update.message.reply_text(redirected_url)
         logger.info(redirected_url)
-
 
 if __name__ == '__main__':
 
@@ -80,8 +107,12 @@ if __name__ == '__main__':
         # Create bot
         application = Application.builder().token(bot_token).build()
 
+        # Commands
+        application.add_handler(CommandHandler("server", server))
+
         # Messages
-        application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, message))
+        application.add_handler(MessageHandler(
+            filters.TEXT & ~filters.COMMAND, message))
 
         # Run bot
         application.run_polling(1.0)
