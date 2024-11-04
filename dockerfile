@@ -6,4 +6,4 @@ COPY . /app
 
 RUN pip install -r requirements.txt
 
-CMD ["sh", "-c", "cd /app/code && python3 main.py"]
+CMD ["sh", "-c", "cd /app/code && python3 main.py ${BOT_TOKEN}"]
