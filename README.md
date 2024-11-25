@@ -1,6 +1,6 @@
 # Hydrangea-Bilibili-Short-Link-Processor
 
-A Telegram bot server.
+A Telegram bot for processing bilibili short links.
 
 ## Usage
 
